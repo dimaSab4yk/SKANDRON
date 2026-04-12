@@ -104,32 +104,30 @@ class MyApp extends StatelessWidget {
 
               ImageButton(
                 imagePath: 'assets/images/ScanBatton.png',
-                size: 80,
-                top: 650,   
-                left: 155,  
-                onTap: () {
-                  print("Кнопка сканування натиснута!");
-                }
-              ),
-
-              ImageButton(
-                imagePath: 'assets/images/History.png',
-                size: 130,
-                top: 650,   
-                left: 255,  
-                onTap: () {
-                  print("Кнопка сканування натиснута!");
-                }
+                width: 80,
+                height: 80,
+                bottom: 20, 
+                left: 0,
+                right: 0,
+                onTap: () => print("Центр натиснуто"),
               ),
 
               ImageButton(
                 imagePath: 'assets/images/LastResult.png',
-                size: 130,
-                top: 650,   
-                left: 25,  
-                onTap: () {
-                  print("Кнопка сканування натиснута!");
-                }
+                width: 130,
+                height: 80,
+                bottom: 20, 
+                left: 20,   
+                onTap: () => print("Ліво натиснуто"),
+              ),
+
+              ImageButton(
+                imagePath: 'assets/images/History.png',
+                width: 130,
+                height: 80,
+                bottom: 20,
+                right: 20,
+                onTap: () => print("Право натиснуто"),
               ),
             ],
           ),
@@ -175,17 +173,23 @@ class CustomFrame extends StatelessWidget {
 
 class ImageButton extends StatelessWidget {
   final String imagePath;
-  final double size;
-  final double top;
-  final double left;
+  final double width;  
+  final double height; 
+  final double? top;  
+  final double? bottom; 
+  final double? left;
+  final double? right;
   final VoidCallback onTap;
 
   const ImageButton({
     super.key,
     required this.imagePath,
-    required this.size,
-    required this.top,
-    required this.left,
+    required this.width,
+    required this.height,
+    this.top,
+    this.bottom,
+    this.left,
+    this.right,
     required this.onTap,
   });
 
@@ -193,15 +197,17 @@ class ImageButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Positioned(
       top: top,
+      bottom: bottom,
       left: left,
+      right: right,
       child: GestureDetector(
-        onTap: onTap, 
+        onTap: onTap,
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
           child: Image.asset(
             imagePath,
-            width: size,
-            height: size,
+            width: width,
+            height: height,
             fit: BoxFit.contain,
           ),
         ),
