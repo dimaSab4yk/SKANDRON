@@ -7,46 +7,59 @@ void main()
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        body: Container(
-          width: double.infinity,
-          height: double.infinity,
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0xFF4698CE),
-                Color(0xFF79AAD5),
-                Color(0xFF80ADD4),
-                Color(0xFFBFD5E3),
-                Color(0xFFDFECF2),
-              ],
-              stops: [0.0, 0.29, 0.47, 0.84, 1.0],
-            ),
+      home: const MainScreen(), 
+    );
+  }
+}
+
+class MainScreen extends StatelessWidget {
+  const MainScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF4698CE),
+              Color(0xFF79AAD5),
+              Color(0xFF80ADD4),
+              Color(0xFFBFD5E3),
+              Color(0xFFDFECF2),
+            ],
+            stops: [0.0, 0.29, 0.47, 0.84, 1.0],
           ),
-          child: Stack(
-            children: [
-              Positioned(
-                top: 211,
-                left: 0,
-                right: 0,
-                child: Text(
-                  'SKANDRON',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontFamily: 'Nunito',
-                    fontWeight: FontWeight.w500,
-                    fontSize: 48,
-                    color: Colors.black,
-                  ),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              top: 211,
+              left: 0,
+              right: 0,
+              child: const Text(
+                'SKANDRON',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Nunito',
+                  fontWeight: FontWeight.w500,
+                  fontSize: 48,
+                  color: Colors.black,
                 ),
               ),
-              CustomFrame(
+            ),
+            
+            CustomFrame(
                 imagePath: 'assets/images/lucide_scan.png',
                 size: 72,
                 rotation: -10,
@@ -102,35 +115,45 @@ class MyApp extends StatelessWidget {
                 left: 70,
               ),
 
-              ImageButton(
-                imagePath: 'assets/images/ScanBatton.png',
-                width: 80,
-                height: 80,
-                bottom: 20, 
-                left: 0,
-                right: 0,
-                onTap: () => print("Центр натиснуто"),
-              ),
+            ImageButton(
+              imagePath: 'assets/images/ScanBatton.png',
+              width: 80,
+              height: 80,
+              bottom: 20,
+              left: 0,
+              right: 0,
+              onTap: () {
+                showDialog(
+                  context: context,
+                  barrierColor: const Color(0xFFD9D9D9).withOpacity(0.6),
+                  builder: (BuildContext context) {
+                    return GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: const SizedBox.expand(),
+                    );
+                  },
+                );
+              },
+            ),
 
-              ImageButton(
-                imagePath: 'assets/images/LastResult.png',
-                width: 130,
-                height: 80,
-                bottom: 20, 
-                left: 20,   
-                onTap: () => print("Ліво натиснуто"),
-              ),
+            ImageButton(
+              imagePath: 'assets/images/LastResult.png',
+              width: 130,
+              height: 80,
+              bottom: 20,
+              left: 20,
+              onTap: () => print("Ліво натиснуто"),
+            ),
 
-              ImageButton(
-                imagePath: 'assets/images/History.png',
-                width: 130,
-                height: 80,
-                bottom: 20,
-                right: 20,
-                onTap: () => print("Право натиснуто"),
-              ),
-            ],
-          ),
+            ImageButton(
+              imagePath: 'assets/images/History.png',
+              width: 130,
+              height: 80,
+              bottom: 20,
+              right: 20,
+              onTap: () => print("Право натиснуто"),
+            ),
+          ],
         ),
       ),
     );
