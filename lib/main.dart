@@ -129,7 +129,43 @@ class MainScreen extends StatelessWidget {
                   builder: (BuildContext context) {
                     return GestureDetector(
                       onTap: () => Navigator.pop(context),
-                      child: const SizedBox.expand(),
+                      child: Center(
+                        child: GestureDetector(
+                          onTap: () {}, 
+                          child: Material( 
+                            color: Colors.transparent,
+                            child: Container(
+                              width: 360,
+                              height: 250,
+                              padding: const EdgeInsets.all(20), 
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF79AAD5).withOpacity(0.6),
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2,
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Column(
+                                mainAxisAlignment: MainAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Оберіть спосіб завантажити фото',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontFamily: 'Nunito', 
+                                      fontWeight: FontWeight.w500,
+                                      fontSize: 19,
+                                      color: Colors.white,
+                                      decoration: TextDecoration.none, 
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     );
                   },
                 );

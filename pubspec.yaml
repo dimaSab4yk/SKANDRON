@@ -27,7 +27,8 @@ flutter:
     - assets/images/Drone4.png
     - assets/images/ScanBatton.png
     - assets/images/History.png
-    - assets/images/LastResult.png
+    - assets/images/CameraButton.svg
+    - assets/images/GalleryBotton.svg
 
   fonts:
     - family: Nunito
