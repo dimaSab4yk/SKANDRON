@@ -1,0 +1,40 @@
+name: SKANDRON
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  flutter_svg: ^2.0.10+1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+      - assets/images/lucide_scan.png
+      - assets/images/Drone1.png
+      - assets/images/Drone2.png
+      - assets/images/Drone3.png
+      - assets/images/Drone4.png
+      - assets/images/ScanBatton.svg
+      - assets/images/History.svg
+      - assets/images/LastResult.svg
+      - assets/images/GalleryBotton.svg
+      - assets/images/CameraButton.svg
+
+  fonts:
+    - family: Nunito
+      fonts:
+        - asset: assets/fonts/Nunito-Medium.ttf
+
+    
