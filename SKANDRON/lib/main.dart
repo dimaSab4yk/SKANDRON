@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math' as math;
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:http/http.dart' as http;
 
 void main()
 {
@@ -124,17 +125,31 @@ class _MainScreenState extends State<MainScreen> {
                             buildDialogButton(
                               imagePath: 'assets/images/GalleryBotton.svg', 
                               label: 'ГАЛЕРЕЯ',
-                              onTap: () {
-                                Navigator.pop(context);
-                                pickImage();
+                              onTap: () async {
+                                try {
+                                  final response = await http.post(Uri.parse('http://192.168.1.3:5000/click/GalleryBotton'));
+                                  if (response.statusCode == 200) {
+                                    Navigator.pop(context); 
+                                    pickImage();           
+                                  }
+                                } catch (e) {
+                                  print("Помилка сервера: $e");
+                                }
                               },
                             ),
                             buildDialogButton(
                               imagePath: 'assets/images/CameraButton.svg', 
                               label: 'КАМЕРА',
-                              onTap: () {
-                                Navigator.pop(context);
-                                takePhoto();
+                              onTap: () async {
+                                try {
+                                  final response = await http.post(Uri.parse('http://192.168.1.3:5000/click/CameraButton'));
+                                  if (response.statusCode == 200) {
+                                    Navigator.pop(context); 
+                                    takePhoto();            
+                                  }
+                                } catch (e) {
+                                  print("Помилка сервера: $e");
+                                }
                               },
                             ),
                           ],
@@ -250,7 +265,23 @@ class _MainScreenState extends State<MainScreen> {
               bottom: 20,
               left: 0,
               right: 0,
-              onTap: () => showUploadDialog(context),
+              onTap: () async {
+                print("Запитую сервер про відкриття діалогу...");
+                try {
+                  final url = Uri.parse('http://192.168.1.3:5000/click/scan_init');
+                  final response = await http.post(url);
+
+                  if (response.statusCode == 200) {
+                    if (!context.mounted) return;
+                    showUploadDialog(context);
+                    print("Сервер дозволив. Діалог відкрито.");
+                  } else {
+                    print("Сервер відхилив запит");
+                  }
+                } catch (e) {
+                  print("Помилка зв'язку: $e"); 
+                }
+              },
             ),
 
             ImageButton(
@@ -259,7 +290,22 @@ class _MainScreenState extends State<MainScreen> {
               height: 80,
               bottom: 20,
               left: 20,
-              onTap: () => print("Ліво натиснуто"),
+              onTap: () async {
+                print("Надсилаю сигнал на сервер...");
+                try {
+                  final url = Uri.parse('http://192.168.1.3:5000/click/last_result');
+                  
+                  final response = await http.post(url);
+
+                  if (response.statusCode == 200) {
+                    print("Сервер відповів: ${response.body}");
+                  } else {
+                    print("Помилка зв'язку: ${response.statusCode}");
+                  }
+                } catch (e) {
+                  print("Не вдалося підключитися до сервера: $e");
+                }
+              },
             ),
 
             ImageButton(
@@ -268,7 +314,22 @@ class _MainScreenState extends State<MainScreen> {
               height: 80,
               bottom: 20,
               right: 20,
-              onTap: () => print("Право натиснуто"),
+              onTap: () async {
+                print("Надсилаю сигнал на сервер...");
+                try {
+                  final url = Uri.parse('http://192.168.1.3:5000/click/history');
+                  
+                  final response = await http.post(url);
+
+                  if (response.statusCode == 200) {
+                    print("Сервер відповів: ${response.body}");
+                  } else {
+                    print("Помилка зв'язку: ${response.statusCode}");
+                  }
+                } catch (e) {
+                  print("Не вдалося підключитися до сервера: $e");
+                }
+              },
             ),
           ],
         ),
