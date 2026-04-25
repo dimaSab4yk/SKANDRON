@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 void main()
 {
@@ -460,26 +461,69 @@ class ImageButton extends StatelessWidget {
   }
 }
 
-class PreviewScreen extends StatelessWidget {
+class PreviewScreen extends StatefulWidget {
   final File imageFile;
 
   const PreviewScreen({super.key, required this.imageFile});
 
   @override
+  State<PreviewScreen> createState() => _PreviewScreenState();
+}
+
+class _PreviewScreenState extends State<PreviewScreen> {
+  bool _isLoading = false;
+  String _resultText = "";
+
+  Future<void> _scanImage() async {
+    setState(() {
+      _isLoading = true;
+      _resultText = "Аналізую...";
+    });
+
+    try {
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('http://192.168.1.3:5000/upload'), 
+      );
+
+      request.files.add(
+        await http.MultipartFile.fromPath('image', widget.imageFile.path),
+      );
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        var data = jsonDecode(response.body);
+        List objects = data['objects'];
+
+        setState(() {
+          if (objects.isEmpty) {
+            _resultText = "Об'єктів не знайдено";
+          } else {
+            _resultText = objects
+                .map((obj) => "${obj['label']} (${(obj['confidence'] * 100).toInt()}%)")
+                .join(", ");
+          }
+        });
+      } else {
+        setState(() => _resultText = "Помилка сервера: ${response.statusCode}");
+      }
+    } catch (e) {
+      setState(() => _resultText = "Помилка зв'язку: $e");
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFDFECF2), 
+      backgroundColor: const Color(0xFFDFECF2),
       appBar: AppBar(
-        title: const Text(
-          'Перегляд фото', 
-          style: TextStyle(
-            fontFamily: 'Nunito', 
-            color: Colors.white, 
-          ),
-        ),
+        title: const Text('Перегляд та аналіз', style: TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF519CD0),
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Center(
         child: Column(
@@ -490,36 +534,32 @@ class PreviewScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(20.0),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(15),
-                  child: Image.file(imageFile, fit: BoxFit.contain),
+                  child: Image.file(widget.imageFile, fit: BoxFit.contain),
                 ),
               ),
             ),
             
+            if (_resultText.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Text(
+                  _resultText,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF519CD0)),
+                ),
+              ),
+
             ElevatedButton(
-              onPressed: () {
-                print("Запуск сканування...");
-              },
+              onPressed: _isLoading ? null : _scanImage, 
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF519CD0), 
-                foregroundColor: Colors.white,           
-                fixedSize: const Size(280, 60),          
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(50), 
-                ),
-                elevation: 5,                            
+                backgroundColor: const Color(0xFF519CD0),
+                foregroundColor: Colors.white,
+                fixedSize: const Size(280, 60),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
               ),
-              child: const Text(
-                "ЗАПУСТИТИ СКАНУВАННЯ",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Nunito',
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  letterSpacing: 1.2,
-                ),
-              ),
+              child: _isLoading
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text("ЗАПУСТИТИ СКАНУВАННЯ"),
             ),
-            
             const SizedBox(height: 20),
           ],
         ),
