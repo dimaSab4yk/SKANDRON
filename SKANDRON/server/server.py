@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify
 from ultralytics import YOLO
 import os
+import cv2
 
 app = Flask(__name__)
 
@@ -35,43 +36,47 @@ def cameraBotton_click():
     print("Запит: Користувач хоче відкрити камеру")
     return {"status": "ok", "action": "open_camera"}
 
+import cv2 # Додай цей імпорт зверху
+
 @app.route('/upload', methods=['POST'])
 def upload_image():
     if 'image' not in request.files:
-        print("Помилка: Файл не знайдено у запиті")
-        return jsonify({"error": "No image part"}), 400
+        return jsonify({"error": "No image"}), 400
     
     file = request.files['image']
-    
-    if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
-
     file_path = os.path.join(UPLOAD_FOLDER, file.filename)
     file.save(file_path)
-    print(f"Файл збережено: {file_path}")
 
+    # 1. Запускаємо YOLO
     results = model.predict(source=file_path, save=False)
     
-    detected_objects = []
+    # 2. МАЛЮЄМО РАМКИ
+    # Метод plot() створює копію картинки з натягнутими рамками та назвами
+    res_plotted = results[0].plot()
     
-    for result in results:
-        for box in result.boxes:
-            class_id = int(box.cls[0])
-            label = model.names[class_id]
-            confidence = float(box.conf[0])
-            
-            detected_objects.append({
-                "label": label,
-                "confidence": round(confidence, 2)
-            })
-    
-    print(f"Знайдені об'єкти: {detected_objects}")
+    # 3. ЗБЕРІГАЄМО ОБРОБЛЕНЕ ФОТО
+    result_filename = "res_" + file.filename
+    result_path = os.path.join(UPLOAD_FOLDER, result_filename)
+    cv2.imwrite(result_path, res_plotted) 
 
+    detected_objects = []
+    for box in results[0].boxes:
+        label = model.names[int(box.cls[0])]
+        confidence = float(box.conf[0])
+        detected_objects.append({"label": label, "confidence": round(confidence, 2)})
+
+    # 4. ПОВЕРТАЄМО URL ОБРОБЛЕНОГО ФОТО
     return jsonify({
         "status": "success",
         "objects": detected_objects,
-        "image_name": file.filename
+        "result_image_url": f"http://192.168.1.2:5000/download/{result_filename}"
     })
+
+# Додай цей новий маршрут, щоб Flutter міг скачати оброблене фото
+from flask import send_from_directory
+@app.route('/download/<filename>')
+def download_file(filename):
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
