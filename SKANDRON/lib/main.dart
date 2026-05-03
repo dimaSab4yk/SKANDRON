@@ -128,7 +128,7 @@ class _MainScreenState extends State<MainScreen> {
                               label: 'ГАЛЕРЕЯ',
                               onTap: () async {
                                 try {
-                                  final response = await http.post(Uri.parse('http://192.168.1.2:5000/click/GalleryBotton'));
+                                  final response = await http.post(Uri.parse('http://192.168.1.6:5000/click/GalleryBotton'));
                                   if (response.statusCode == 200) {
                                     Navigator.pop(context); 
                                     pickImage();           
@@ -143,7 +143,7 @@ class _MainScreenState extends State<MainScreen> {
                               label: 'КАМЕРА',
                               onTap: () async {
                                 try {
-                                  final response = await http.post(Uri.parse('http://192.168.1.2:5000/click/CameraButton'));
+                                  final response = await http.post(Uri.parse('http://192.168.1.6:5000/click/CameraButton'));
                                   if (response.statusCode == 200) {
                                     Navigator.pop(context); 
                                     takePhoto();            
@@ -269,7 +269,7 @@ class _MainScreenState extends State<MainScreen> {
               onTap: () async {
                 print("Запитую сервер про відкриття діалогу...");
                 try {
-                  final url = Uri.parse('http://192.168.1.2:5000/click/scan_init');
+                  final url = Uri.parse('http://192.168.1.6:5000/click/scan_init');
                   final response = await http.post(url);
 
                   if (response.statusCode == 200) {
@@ -294,7 +294,7 @@ class _MainScreenState extends State<MainScreen> {
               onTap: () async {
                 print("Надсилаю сигнал на сервер...");
                 try {
-                  final url = Uri.parse('http://192.168.1.2:5000/click/last_result');
+                  final url = Uri.parse('http://192.168.1.6:5000/click/last_result');
                   
                   final response = await http.post(url);
 
@@ -318,7 +318,7 @@ class _MainScreenState extends State<MainScreen> {
               onTap: () async {
                 print("Надсилаю сигнал на сервер...");
                 try {
-                  final url = Uri.parse('http://192.168.1.2:5000/click/history');
+                  final url = Uri.parse('http://192.168.1.6:5000/click/history');
                   
                   final response = await http.post(url);
 
@@ -484,7 +484,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.1.2:5000/upload'), 
+        Uri.parse('http://192.168.1.6:5000/upload'), 
       );
 
       request.files.add(
@@ -499,7 +499,6 @@ class _PreviewScreenState extends State<PreviewScreen> {
         List objects = data['objects'];
 
         setState(() {
-          // Отримуємо посилання на оброблене фото від сервера
           _serverImageUrl = data['result_image_url']; 
 
           if (objects.isEmpty) {
@@ -541,10 +540,8 @@ class _PreviewScreenState extends State<PreviewScreen> {
                   child: _serverImageUrl == null
                       ? Image.file(widget.imageFile, fit: BoxFit.contain)
                       : Image.network(
-                          // Додаємо timestamp (?v=...), щоб Flutter не брав стару картинку з кешу
                           "$_serverImageUrl?v=${DateTime.now().millisecondsSinceEpoch}",
                           fit: BoxFit.contain,
-                          // Поки картинка з сервера вантажиться, показуємо індикатор
                           loadingBuilder: (context, child, loadingProgress) {
                             if (loadingProgress == null) return child;
                             return const Center(child: CircularProgressIndicator());

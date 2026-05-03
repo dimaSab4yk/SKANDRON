@@ -25,7 +25,7 @@ class Scan(db.Model):
 with app.app_context():
     db.create_all()
 
-model = YOLO('yolov8n.pt') 
+model = YOLO('best (1).pt') 
 
 UPLOAD_FOLDER = 'uploads'
 if not os.path.exists(UPLOAD_FOLDER):
@@ -101,8 +101,8 @@ def upload_image():
     return jsonify({
         "status": "success",
         "objects": detected_objects,
-        "original_image_url": f"http://192.168.1.2:5000/download/{orig_filename}",
-        "result_image_url": f"http://192.168.1.2:5000/download/{res_filename}"
+        "original_image_url": f"http://192.168.1.6:5000/download/{orig_filename}",
+        "result_image_url": f"http://192.168.1.6:5000/download/{res_filename}"
     })
 
 from flask import send_from_directory
