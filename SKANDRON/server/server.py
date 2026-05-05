@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from ultralytics import YOLO
 from datetime import datetime
+import json
 import os
 import cv2
 
@@ -101,9 +102,31 @@ def upload_image():
     return jsonify({
         "status": "success",
         "objects": detected_objects,
-        "original_image_url": f"http://192.168.1.6:5000/download/{orig_filename}",
-        "result_image_url": f"http://192.168.1.6:5000/download/{res_filename}"
+        "original_image_url": f"http://192.168.1.3:5000/download/{orig_filename}",
+        "result_image_url": f"http://192.168.1.3:5000/download/{res_filename}"
     })
+
+@app.route('/get_last_scan', methods=['GET'])
+def get_last_scan():
+    try:
+        last_scan = Scan.query.order_by(Scan.id.desc()).first()
+        
+        if not last_scan:
+            return jsonify({"status": "empty", "message": "Історія порожня"}), 200
+
+        try:
+            results_list = json.loads(last_scan.result_text)
+        except:
+            results_list = [] 
+
+        return jsonify({
+            "status": "success",
+            "time": last_scan.timestamp.strftime("%H:%M:%S %d.%m.%Y"),
+            "results": results_list, 
+            "image": f"http://192.168.1.3:5000/download/{last_scan.processed_image}"
+        })
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 from flask import send_from_directory
 @app.route('/download/<filename>')

@@ -128,7 +128,7 @@ class _MainScreenState extends State<MainScreen> {
                               label: 'ГАЛЕРЕЯ',
                               onTap: () async {
                                 try {
-                                  final response = await http.post(Uri.parse('http://192.168.1.6:5000/click/GalleryBotton'));
+                                  final response = await http.post(Uri.parse('http://192.168.1.3:5000/click/GalleryBotton'));
                                   if (response.statusCode == 200) {
                                     Navigator.pop(context); 
                                     pickImage();           
@@ -143,7 +143,7 @@ class _MainScreenState extends State<MainScreen> {
                               label: 'КАМЕРА',
                               onTap: () async {
                                 try {
-                                  final response = await http.post(Uri.parse('http://192.168.1.6:5000/click/CameraButton'));
+                                  final response = await http.post(Uri.parse('http://192.168.1.3:5000/click/CameraButton'));
                                   if (response.statusCode == 200) {
                                     Navigator.pop(context); 
                                     takePhoto();            
@@ -165,6 +165,97 @@ class _MainScreenState extends State<MainScreen> {
         },
       );
     }
+
+  void showUploadLastResult(BuildContext context, String scanTime, String imageUrl) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final double dialogHeight = screenHeight * 0.6;
+
+    showDialog(
+      context: context,
+      barrierColor: const Color(0xFFD9D9D9).withOpacity(0.6),
+      builder: (BuildContext context) {
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: screenWidth - 32,
+              height: dialogHeight,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      top: 20,
+                      left: 20,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Останнє сканування:',
+                            style: TextStyle(
+                              fontFamily: 'Nunito',
+                              fontWeight: FontWeight.bold,
+                              fontSize: 20,
+                              color: Color(0xFF323232),
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                          Text(
+                            scanTime,
+                            style: const TextStyle(
+                              fontFamily: 'Nunito',
+                              fontSize: 13,
+                              color: Color(0xFF757575),
+                              decoration: TextDecoration.none,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    Positioned(
+                      top: 80,
+                      bottom: 100, 
+                      left: 0,
+                      right: 0,
+                      child: Image.network(
+                        imageUrl,
+                        fit: BoxFit.contain, 
+                        alignment: Alignment.center,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return const Center(child: CircularProgressIndicator());
+                        },
+                        errorBuilder: (context, error, stackTrace) => const Icon(
+                          Icons.broken_image, 
+                          color: Colors.grey, 
+                          size: 40
+                        ),
+                      ),
+                    ),
+
+                    Positioned(
+                      top: 15,
+                      right: 15,
+                      child: GestureDetector(
+                        onTap: () => Navigator.pop(context),
+                        child: const Icon(Icons.close, color: Color(0xFF323232), size: 28),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -269,7 +360,7 @@ class _MainScreenState extends State<MainScreen> {
               onTap: () async {
                 print("Запитую сервер про відкриття діалогу...");
                 try {
-                  final url = Uri.parse('http://192.168.1.6:5000/click/scan_init');
+                  final url = Uri.parse('http://192.168.1.3:5000/click/scan_init');
                   final response = await http.post(url);
 
                   if (response.statusCode == 200) {
@@ -286,25 +377,27 @@ class _MainScreenState extends State<MainScreen> {
             ),
 
             ImageButton(
-              imagePath: 'assets/images/LastResult.svg', 
+              imagePath: 'assets/images/LastResult.svg',
               width: 130,
               height: 80,
               bottom: 20,
               left: 20,
               onTap: () async {
-                print("Надсилаю сигнал на сервер...");
                 try {
-                  final url = Uri.parse('http://192.168.1.6:5000/click/last_result');
-                  
-                  final response = await http.post(url);
-
+                  final response = await http.get(Uri.parse('http://192.168.1.3:5000/get_last_scan'));
                   if (response.statusCode == 200) {
-                    print("Сервер відповів: ${response.body}");
-                  } else {
-                    print("Помилка зв'язку: ${response.statusCode}");
+                    final data = jsonDecode(response.body);
+                    
+                    if (data['status'] == 'success' && context.mounted) {
+                      showUploadLastResult(
+                        context, 
+                        data['time'], 
+                        data['image']
+                      );
+                    }
                   }
                 } catch (e) {
-                  print("Не вдалося підключитися до сервера: $e");
+                  print("Помилка: $e");
                 }
               },
             ),
@@ -318,7 +411,7 @@ class _MainScreenState extends State<MainScreen> {
               onTap: () async {
                 print("Надсилаю сигнал на сервер...");
                 try {
-                  final url = Uri.parse('http://192.168.1.6:5000/click/history');
+                  final url = Uri.parse('http://192.168.1.3:5000/click/history');
                   
                   final response = await http.post(url);
 
@@ -484,7 +577,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.1.6:5000/upload'), 
+        Uri.parse('http://192.168.1.3:5000/upload'), 
       );
 
       request.files.add(
