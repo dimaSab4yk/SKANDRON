@@ -2,9 +2,9 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from ultralytics import YOLO
 from datetime import datetime
-import json
 import os
 import cv2
+import ast
 
 app = Flask(__name__)
 
@@ -114,8 +114,10 @@ def get_last_scan():
         if not last_scan:
             return jsonify({"status": "empty", "message": "Історія порожня"}), 200
 
+        # Безпечний переклад рядка з БД у список Python
         try:
-            results_list = json.loads(last_scan.result_text)
+            raw_data = last_scan.result_text
+            results_list = ast.literal_eval(raw_data) if raw_data else []
         except:
             results_list = [] 
 

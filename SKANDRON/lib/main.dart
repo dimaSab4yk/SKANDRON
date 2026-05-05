@@ -166,10 +166,27 @@ class _MainScreenState extends State<MainScreen> {
       );
     }
 
-  void showUploadLastResult(BuildContext context, String scanTime, String imageUrl) {
+  void showUploadLastResult(BuildContext context, String scanTime, String imageUrl, List<Map<String, dynamic>> results) {
     final screenWidth = MediaQuery.of(context).size.width;
     final screenHeight = MediaQuery.of(context).size.height;
     final double dialogHeight = screenHeight * 0.6;
+
+    String label = "Невідомо";
+    String accuracy = "0%";
+    String status = "не виявлено";
+    Color statusColor = const Color(0xFFE75454); 
+
+    if (results.isNotEmpty) {
+      label = results[0]['label']?.toString() ?? "Невідомо";
+      
+      double conf = double.tryParse(results[0]['confidence'].toString()) ?? 0.0;
+      accuracy = "${(conf * 100).toStringAsFixed(0)}%";
+      
+      if (label.toLowerCase() == 'drone') {
+        status = "виявлено";
+        statusColor = const Color(0xFF0BB43A); 
+      }
+    }
 
     showDialog(
       context: context,
@@ -220,12 +237,12 @@ class _MainScreenState extends State<MainScreen> {
 
                     Positioned(
                       top: 80,
-                      bottom: 100, 
+                      bottom: 120,
                       left: 0,
                       right: 0,
                       child: Image.network(
                         imageUrl,
-                        fit: BoxFit.contain, 
+                        fit: BoxFit.contain,
                         alignment: Alignment.center,
                         loadingBuilder: (context, child, loadingProgress) {
                           if (loadingProgress == null) return child;
@@ -236,6 +253,51 @@ class _MainScreenState extends State<MainScreen> {
                           color: Colors.grey, 
                           size: 40
                         ),
+                      ),
+                    ),
+
+                    Positioned(
+                      bottom: 20,
+                      left: 20,
+                      right: 20,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          RichText(
+                            text: TextSpan(
+                              style: const TextStyle(fontFamily: 'Nunito', fontSize: 16, color: Color(0xFF323232)),
+                              children: [
+                                const TextSpan(text: "Назва: ", style: TextStyle(fontWeight: FontWeight.bold)),
+                                TextSpan(text: label),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          
+                          RichText(
+                            text: TextSpan(
+                              style: const TextStyle(fontFamily: 'Nunito', fontSize: 16, color: Color(0xFF323232)),
+                              children: [
+                                const TextSpan(text: "Статус: ", style: TextStyle(fontWeight: FontWeight.bold)),
+                                TextSpan(
+                                  text: status, 
+                                  style: TextStyle(color: statusColor, fontWeight: FontWeight.bold)
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+
+                          RichText(
+                            text: TextSpan(
+                              style: const TextStyle(fontFamily: 'Nunito', fontSize: 16, color: Color(0xFF323232)),
+                              children: [
+                                const TextSpan(text: "Точність: ", style: TextStyle(fontWeight: FontWeight.bold)),
+                                TextSpan(text: accuracy),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
 
@@ -350,7 +412,7 @@ class _MainScreenState extends State<MainScreen> {
                 left: 70,
               ),
 
-            ImageButton(
+                        ImageButton(
               imagePath: 'assets/images/ScanBatton.svg',
               width: 80,
               height: 80,
@@ -384,20 +446,28 @@ class _MainScreenState extends State<MainScreen> {
               left: 20,
               onTap: () async {
                 try {
-                  final response = await http.get(Uri.parse('http://192.168.1.3:5000/get_last_scan'));
+                  final response = await http.get(Uri.parse('http://192.168.1.3:5000/get_last_scan'))
+                      .timeout(const Duration(seconds: 5));
+
                   if (response.statusCode == 200) {
                     final data = jsonDecode(response.body);
-                    
+
                     if (data['status'] == 'success' && context.mounted) {
+                      final List<dynamic> rawResults = data['results'] ?? [];
+                      final List<Map<String, dynamic>> scanResults = rawResults
+                          .map((e) => Map<String, dynamic>.from(e))
+                          .toList();
+
                       showUploadLastResult(
                         context, 
-                        data['time'], 
-                        data['image']
+                        data['time'] ?? "Час невідомий", 
+                        data['image'] ?? "", 
+                        scanResults,
                       );
                     }
                   }
                 } catch (e) {
-                  print("Помилка: $e");
+                  debugPrint("Помилка з'єднання: $e");
                 }
               },
             ),
