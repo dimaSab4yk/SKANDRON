@@ -102,8 +102,8 @@ def upload_image():
     return jsonify({
         "status": "success",
         "objects": detected_objects,
-        "original_image_url": f"http://192.168.1.3:5000/download/{orig_filename}",
-        "result_image_url": f"http://192.168.1.3:5000/download/{res_filename}"
+        "original_image_url": f"http://192.168.1.5:5000/download/{orig_filename}",
+        "result_image_url": f"http://192.168.1.5:5000/download/{res_filename}"
     })
 
 @app.route('/get_last_scan', methods=['GET'])
@@ -125,7 +125,7 @@ def get_last_scan():
             "status": "success",
             "time": last_scan.timestamp.strftime("%H:%M:%S %d.%m.%Y"),
             "results": results_list, 
-            "image": f"http://192.168.1.3:5000/download/{last_scan.processed_image}"
+            "image": f"http://192.168.1.5:5000/download/{last_scan.processed_image}"
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500

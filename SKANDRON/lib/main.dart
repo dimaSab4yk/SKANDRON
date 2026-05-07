@@ -128,7 +128,7 @@ class _MainScreenState extends State<MainScreen> {
                               label: 'ГАЛЕРЕЯ',
                               onTap: () async {
                                 try {
-                                  final response = await http.post(Uri.parse('http://192.168.1.3:5000/click/GalleryBotton'));
+                                  final response = await http.post(Uri.parse('http://192.168.1.5:5000/click/GalleryBotton'));
                                   if (response.statusCode == 200) {
                                     Navigator.pop(context); 
                                     pickImage();           
@@ -143,7 +143,7 @@ class _MainScreenState extends State<MainScreen> {
                               label: 'КАМЕРА',
                               onTap: () async {
                                 try {
-                                  final response = await http.post(Uri.parse('http://192.168.1.3:5000/click/CameraButton'));
+                                  final response = await http.post(Uri.parse('http://192.168.1.5:5000/click/CameraButton'));
                                   if (response.statusCode == 200) {
                                     Navigator.pop(context); 
                                     takePhoto();            
@@ -422,7 +422,7 @@ class _MainScreenState extends State<MainScreen> {
               onTap: () async {
                 print("Запитую сервер про відкриття діалогу...");
                 try {
-                  final url = Uri.parse('http://192.168.1.3:5000/click/scan_init');
+                  final url = Uri.parse('http://192.168.1.5:5000/click/scan_init');
                   final response = await http.post(url);
 
                   if (response.statusCode == 200) {
@@ -446,7 +446,7 @@ class _MainScreenState extends State<MainScreen> {
               left: 20,
               onTap: () async {
                 try {
-                  final response = await http.get(Uri.parse('http://192.168.1.3:5000/get_last_scan'))
+                  final response = await http.get(Uri.parse('http://192.168.1.5:5000/get_last_scan'))
                       .timeout(const Duration(seconds: 5));
 
                   if (response.statusCode == 200) {
@@ -479,19 +479,22 @@ class _MainScreenState extends State<MainScreen> {
               bottom: 20,
               right: 20,
               onTap: () async {
-                print("Надсилаю сигнал на сервер...");
                 try {
-                  final url = Uri.parse('http://192.168.1.3:5000/click/history');
-                  
+                  final url = Uri.parse('http://192.168.1.5:5000/click/history');
                   final response = await http.post(url);
 
                   if (response.statusCode == 200) {
-                    print("Сервер відповів: ${response.body}");
+                    if (!context.mounted) return;
+                    
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const HistoryPage()),
+                    );
                   } else {
-                    print("Помилка зв'язку: ${response.statusCode}");
+                    print("Сервер заборонив відкриття історії. Код: ${response.statusCode}");
                   }
                 } catch (e) {
-                  print("Не вдалося підключитися до сервера: $e");
+                  print("Не вдалося отримати дозвіл від сервера: $e");
                 }
               },
             ),
@@ -531,6 +534,166 @@ class _MainScreenState extends State<MainScreen> {
               fontSize: 14,
               color: Colors.white,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class HistoryPage extends StatelessWidget {
+  const HistoryPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Map<String, String>> scanHistory = [
+      {'time': '12:30', 'date': '07.05.2026', 'label': 'Drone', 'accuracy': '98%'},
+      {'time': '10:15', 'date': '07.05.2026', 'label': 'Unknown', 'accuracy': '15%'},
+      {'time': '18:45', 'date': '06.05.2026', 'label': 'Drone', 'accuracy': '92%'},
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'ІСТОРІЯ СКАНУВАНЬ',
+          style: TextStyle(color: Colors.white, fontFamily: 'Nunito', fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xFF4698CE),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+        elevation: 0,
+      ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFF4698CE),
+              Color(0xFF79AAD5),
+              Color(0xFF80ADD4),
+              Color(0xFFBFD5E3),
+              Color(0xFFDFECF2),
+            ],
+            stops: [0.0, 0.29, 0.47, 0.84, 1.0],
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(20, 20, 20, 10),
+              child: Text(
+                'Нещодавні сканування',
+                style: TextStyle(
+                  fontFamily: 'Nunito',
+                  fontSize: 20,
+                  color: Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: scanHistory.length,
+                itemBuilder: (context, index) {
+                  final item = scanHistory[index];
+                  return HistoryCard(
+                    label: item['label']!,
+                    time: item['time']!,
+                    date: item['date']!,
+                    accuracy: item['accuracy']!,
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class HistoryCard extends StatelessWidget {
+  final String label;
+  final String time;
+  final String date;
+  final String accuracy;
+
+  const HistoryCard({
+    super.key,
+    required this.label,
+    required this.time,
+    required this.date,
+    required this.accuracy,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    bool isDrone = label.toLowerCase() == 'drone';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.9), 
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: isDrone ? Colors.green.shade50 : Colors.red.shade50,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              isDrone ? Icons.radar : Icons.help_outline,
+              color: isDrone ? Colors.green : Colors.red,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isDrone ? "БПЛА Виявлено" : "Об'єкт не розпізнано",
+                  style: const TextStyle(
+                    fontFamily: 'Nunito',
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+                Text(
+                  "$date о $time",
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const Text("Точність", style: TextStyle(fontSize: 11, color: Colors.grey)),
+              Text(
+                accuracy,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: isDrone ? Colors.green : Colors.orange,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -647,7 +810,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.1.3:5000/upload'), 
+        Uri.parse('http://192.168.1.5:5000/upload'), 
       );
 
       request.files.add(
@@ -690,6 +853,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
         title: const Text('Перегляд та аналіз', style: TextStyle(color: Colors.white)),
         backgroundColor: const Color(0xFF519CD0),
         centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Center(
         child: Column(
