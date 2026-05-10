@@ -128,6 +128,54 @@ def get_last_scan():
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+    
+@app.route('/api/get_history', methods=['GET'])
+def get_history():
+    try:
+        limit = int(request.args.get('limit', 15))
+        offset = int(request.args.get('offset', 0))
+        scans = Scan.query.order_by(Scan.id.desc()).offset(offset).limit(limit).all()
+
+        results_list = []
+        for scan in scans:
+            try:
+                detected_objects = ast.literal_eval(scan.result_text)
+            except:
+                detected_objects = []
+
+            label = "Unknown"
+            accuracy = "0%"
+            if detected_objects:
+                label = detected_objects[0].get('label', 'Unknown')
+                conf = detected_objects[0].get('confidence', 0)
+                accuracy = f"{int(conf * 100)}%"
+
+            results_list.append({
+                "id": scan.id,
+                "label": label,
+                "accuracy": accuracy,
+                "time": scan.timestamp.strftime("%H:%M"),
+                "date": scan.timestamp.strftime("%d.%m.%Y"),
+                "image_url": f"http://192.168.1.2:5000/download/{scan.processed_image}"
+            })
+
+        return jsonify(results_list)
+
+    except Exception as e:
+        print(f"Помилка історії: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/delete_scan/<int:scan_id>', methods=['DELETE'])
+def delete_scan(scan_id):
+    try:
+        scan = Scan.query.get(scan_id)
+        if scan:
+            db.session.delete(scan)
+            db.session.commit()
+            return jsonify({"status": "success"}), 200
+        return jsonify({"status": "not_found"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 from flask import send_from_directory
 @app.route('/download/<filename>')

@@ -167,157 +167,19 @@ class _MainScreenState extends State<MainScreen> {
     }
 
   void showUploadLastResult(BuildContext context, String scanTime, String imageUrl, List<Map<String, dynamic>> results) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final double dialogHeight = screenHeight * 0.6;
-
-    String label = "Невідомо";
-    String accuracy = "0%";
-    String status = "не виявлено";
-    Color statusColor = const Color(0xFFE75454); 
-
-    if (results.isNotEmpty) {
-      label = results[0]['label']?.toString() ?? "Невідомо";
-      
-      double conf = double.tryParse(results[0]['confidence'].toString()) ?? 0.0;
-      accuracy = "${(conf * 100).toStringAsFixed(0)}%";
-      
-      if (label.toLowerCase() == 'drone') {
-        status = "виявлено";
-        statusColor = const Color(0xFF0BB43A); 
-      }
-    }
-
-    showDialog(
-      context: context,
-      barrierColor: const Color(0xFFD9D9D9).withOpacity(0.6),
-      builder: (BuildContext context) {
-        return Center(
-          child: Material(
-            color: Colors.transparent,
-            child: Container(
-              width: screenWidth - 32,
-              height: dialogHeight,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: Stack(
-                  children: [
-                    Positioned(
-                      top: 20,
-                      left: 20,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Останнє сканування:',
-                            style: TextStyle(
-                              fontFamily: 'Nunito',
-                              fontWeight: FontWeight.bold,
-                              fontSize: 20,
-                              color: Color(0xFF323232),
-                              decoration: TextDecoration.none,
-                            ),
-                          ),
-                          Text(
-                            scanTime,
-                            style: const TextStyle(
-                              fontFamily: 'Nunito',
-                              fontSize: 13,
-                              color: Color(0xFF757575),
-                              decoration: TextDecoration.none,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    Positioned(
-                      top: 80,
-                      bottom: 120,
-                      left: 0,
-                      right: 0,
-                      child: Image.network(
-                        imageUrl,
-                        fit: BoxFit.contain,
-                        alignment: Alignment.center,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return const Center(child: CircularProgressIndicator());
-                        },
-                        errorBuilder: (context, error, stackTrace) => const Icon(
-                          Icons.broken_image, 
-                          color: Colors.grey, 
-                          size: 40
-                        ),
-                      ),
-                    ),
-
-                    Positioned(
-                      bottom: 20,
-                      left: 20,
-                      right: 20,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          RichText(
-                            text: TextSpan(
-                              style: const TextStyle(fontFamily: 'Nunito', fontSize: 16, color: Color(0xFF323232)),
-                              children: [
-                                const TextSpan(text: "Назва: ", style: TextStyle(fontWeight: FontWeight.bold)),
-                                TextSpan(text: label),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          
-                          RichText(
-                            text: TextSpan(
-                              style: const TextStyle(fontFamily: 'Nunito', fontSize: 16, color: Color(0xFF323232)),
-                              children: [
-                                const TextSpan(text: "Статус: ", style: TextStyle(fontWeight: FontWeight.bold)),
-                                TextSpan(
-                                  text: status, 
-                                  style: TextStyle(color: statusColor, fontWeight: FontWeight.bold)
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-
-                          RichText(
-                            text: TextSpan(
-                              style: const TextStyle(fontFamily: 'Nunito', fontSize: 16, color: Color(0xFF323232)),
-                              children: [
-                                const TextSpan(text: "Точність: ", style: TextStyle(fontWeight: FontWeight.bold)),
-                                TextSpan(text: accuracy),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    Positioned(
-                      top: 15,
-                      right: 15,
-                      child: GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: const Icon(Icons.close, color: Color(0xFF323232), size: 28),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
+  showDialog(
+    context: context,
+    barrierColor: const Color(0xFFD9D9D9).withOpacity(0.6),
+    builder: (BuildContext context) {
+      return ScanDetailDialog(
+        title: 'Останнє сканування:',
+        scanTime: scanTime,
+        imageUrl: imageUrl,
+        results: results,
+      );
+    },
+  );
+}
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -549,29 +411,53 @@ class HistoryPage extends StatefulWidget {
 }
 
 class _HistoryPageState extends State<HistoryPage> {
-  final List<Map<String, String>> _allHistory = List.generate(
-    40, 
-    (i) => {
-      'time': '12:${i.toString().padLeft(2, '0')}',
-      'date': '07.05.2026',
-      'label': i % 3 == 0 ? 'Unknown' : 'Drone',
-      'accuracy': '${90 + (i % 10)}%'
-    },
-  );
+  List<Map<String, dynamic>> _historyData = [];
+  
+  bool _isLoading = false;
+  int _currentOffset = 0; 
+  final int _limit = 15;   
+  bool _hasMore = true;    
 
-  int _currentLimit = 15;
+  @override
+  void initState() {
+    super.initState();
+    _fetchHistory(); 
+  }
 
-  void _loadMore() {
-    setState(() {
-      _currentLimit += 15; 
-    });
+  Future<void> _fetchHistory() async {
+    if (_isLoading || !_hasMore) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final url = Uri.parse('http://192.168.1.2:5000/api/get_history?offset=$_currentOffset&limit=$_limit');
+      
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        
+        setState(() {
+          _historyData.addAll(data.cast<Map<String, dynamic>>());
+          _currentOffset += data.length;
+          
+          if (data.length < _limit) {
+            _hasMore = false;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("Помилка зв'язку з БД: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Не вдалося підключитися до сервера")),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final displayedHistory = _allHistory.take(_currentLimit).toList();
-    final bool hasMore = _currentLimit < _allHistory.length;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -591,11 +477,7 @@ class _HistoryPageState extends State<HistoryPage> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFF4698CE),
-              Color(0xFF79AAD5),
-              Color(0xFF80ADD4),
-              Color(0xFFBFD5E3),
-              Color(0xFFDFECF2),
+              Color(0xFF4698CE), Color(0xFF79AAD5), Color(0xFF80ADD4), Color(0xFFBFD5E3), Color(0xFFDFECF2),
             ],
             stops: [0.0, 0.29, 0.47, 0.84, 1.0],
           ),
@@ -607,50 +489,70 @@ class _HistoryPageState extends State<HistoryPage> {
               padding: EdgeInsets.fromLTRB(20, 20, 20, 10),
               child: Text(
                 'Нещодавні сканування',
-                style: TextStyle(
-                  fontFamily: 'Nunito',
-                  fontSize: 20,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: TextStyle(fontFamily: 'Nunito', fontSize: 20, color: Colors.white, fontWeight: FontWeight.w500),
               ),
             ),
             Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: hasMore ? displayedHistory.length + 1 : displayedHistory.length,
-                itemBuilder: (context, index) {
-                  if (hasMore && index == displayedHistory.length) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 30),
-                      child: Center(
-                        child: ElevatedButton(
-                          onPressed: _loadMore,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF519CD0),
-                            foregroundColor: Colors.white,
-                            fixedSize: const Size(280, 60),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
-                            elevation: 2,
+              child: _historyData.isEmpty && _isLoading
+                  ? const Center(child: CircularProgressIndicator(color: Colors.white))
+                  : _historyData.isEmpty
+                      ? const Center(
+                          child: Text(
+                            "Історія порожня",
+                            style: TextStyle(color: Colors.white, fontFamily: 'Nunito'),
                           ),
-                          child: const Text(
-                            "ЗАВАНТАЖИТИ ЩЕ...",
-                            style: TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.bold, fontSize: 16),
-                          ),
-                        ),
-                      ),
-                    );
-                  }
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          itemCount: _historyData.length + (_hasMore ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            if (_hasMore && index == _historyData.length) {
+                              return Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 30),
+                                child: Center(
+                                  child: _isLoading 
+                                    ? const CircularProgressIndicator(color: Colors.white)
+                                    : ElevatedButton(
+                                        onPressed: _fetchHistory,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF519CD0),
+                                          foregroundColor: Colors.white,
+                                          fixedSize: const Size(280, 60),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                                        ),
+                                        child: const Text(
+                                          "ЗАВАНТАЖИТИ ЩЕ...", 
+                                          style: TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.bold, fontSize: 16)
+                                        ),
+                                      ),
+                                ),
+                              );
+                            }
 
-                  final item = displayedHistory[index];
-                  return HistoryCard(
-                    label: item['label']!,
-                    time: item['time']!,
-                    date: item['date']!,
-                    accuracy: item['accuracy']!,
-                  );
-                },
-              ),
+                            final item = _historyData[index];
+
+                            return GestureDetector(
+                              onTap: () {
+                                showDialog(
+                                  context: context,
+                                  barrierColor: const Color(0xFFD9D9D9).withOpacity(0.6),
+                                  builder: (context) => ScanDetailDialog(
+                                    title: 'Деталі сканування',
+                                    scanTime: "${item['time']} ${item['date']}",
+                                    imageUrl: item['image_url'] ?? "",
+                                    results: [item], 
+                                  ),
+                                );
+                              },
+                              child: HistoryCard(
+                                label: item['label'] ?? "Невідомо",
+                                time: item['time'] ?? "00:00",
+                                date: item['date'] ?? "00.00.0000",
+                                accuracy: item['accuracy'] ?? "0%",
+                              ),
+                            );
+                          },
+                        )
             ),
           ],
         ),
@@ -742,7 +644,7 @@ class HistoryCard extends StatelessWidget {
                 ),
 
                 Text(
-                  "Назва: ${isDrone ? 'дрон' : 'невідомо'}",
+                  "Назва: $label", 
                   style: const TextStyle(
                     fontFamily: 'Nunito',
                     fontSize: 16,
@@ -1001,3 +903,168 @@ class _PreviewScreenState extends State<PreviewScreen> {
     );
   }
 }
+
+class ScanDetailDialog extends StatelessWidget {
+  final String title;
+  final String scanTime;
+  final String imageUrl;
+  final List<dynamic> results;
+
+  const ScanDetailDialog({
+    super.key,
+    required this.title,
+    required this.scanTime,
+    required this.imageUrl,
+    required this.results,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final double dialogHeight = screenHeight * 0.6;
+
+    String label = "Невідомо";
+    String accuracy = "0%";
+    String status = "не виявлено";
+    Color statusColor = const Color(0xFFE75454);
+
+    if (results.isNotEmpty) {
+      final firstResult = results[0];
+      label = firstResult['label']?.toString() ?? "Невідомо";
+      
+      double conf = double.tryParse(firstResult['confidence'].toString()) ?? 
+                    (double.tryParse(firstResult['accuracy']?.toString().replaceAll('%', '') ?? '0') ?? 0.0);
+      
+      if (conf <= 1.0 && conf > 0) {
+        accuracy = "${(conf * 100).toStringAsFixed(0)}%";
+      } else {
+        accuracy = "${conf.toStringAsFixed(0)}%";
+      }
+
+      if (label.toLowerCase() == 'drone') {
+        status = "виявлено";
+        statusColor = const Color(0xFF0BB43A);
+      }
+    }
+
+    return Center(
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          width: screenWidth - 32,
+          height: dialogHeight,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 20,
+                  left: 20,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title, 
+                        style: const TextStyle(
+                          fontFamily: 'Nunito',
+                          fontWeight: FontWeight.bold,
+                          fontSize: 20,
+                          color: Color(0xFF323232),
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                      Text(
+                        scanTime,
+                        style: const TextStyle(
+                          fontFamily: 'Nunito',
+                          fontSize: 13,
+                          color: Color(0xFF757575),
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                Positioned(
+                  top: 85,
+                  bottom: 125,
+                  left: 10,
+                  right: 10,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF5F5F5),
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, progress) =>
+                          progress == null ? child : const Center(child: CircularProgressIndicator()),
+                      errorBuilder: (context, e, s) => const Icon(Icons.broken_image, size: 50, color: Colors.grey),
+                    ),
+                  ),
+                ),
+
+                Positioned(
+                  bottom: 20,
+                  left: 25,
+                  right: 20,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildRichText("Назва: ", label),
+                      const SizedBox(height: 6),
+                      _buildStatusText("Статус: ", status, statusColor),
+                      const SizedBox(height: 6),
+                      _buildRichText("Точність: ", accuracy),
+                    ],
+                  ),
+                ),
+
+                Positioned(
+                  top: 15,
+                  right: 15,
+                  child: IconButton(
+                    icon: const Icon(Icons.close, color: Color(0xFF323232), size: 28),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRichText(String label, String value) {
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(fontFamily: 'Nunito', fontSize: 16, color: Color(0xFF323232)),
+        children: [
+          TextSpan(text: label, style: const TextStyle(fontWeight: FontWeight.bold)),
+          TextSpan(text: value),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusText(String label, String status, Color color) {
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(fontFamily: 'Nunito', fontSize: 16, color: Color(0xFF323232)),
+        children: [
+          TextSpan(text: label, style: const TextStyle(fontWeight: FontWeight.bold)),
+          TextSpan(text: status, style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+}
+
