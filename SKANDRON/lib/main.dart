@@ -128,7 +128,7 @@ class _MainScreenState extends State<MainScreen> {
                               label: 'ГАЛЕРЕЯ',
                               onTap: () async {
                                 try {
-                                  final response = await http.post(Uri.parse('http://192.168.1.5:5000/click/GalleryBotton'));
+                                  final response = await http.post(Uri.parse('http://192.168.1.2:5000/click/GalleryBotton'));
                                   if (response.statusCode == 200) {
                                     Navigator.pop(context); 
                                     pickImage();           
@@ -143,7 +143,7 @@ class _MainScreenState extends State<MainScreen> {
                               label: 'КАМЕРА',
                               onTap: () async {
                                 try {
-                                  final response = await http.post(Uri.parse('http://192.168.1.5:5000/click/CameraButton'));
+                                  final response = await http.post(Uri.parse('http://192.168.1.2:5000/click/CameraButton'));
                                   if (response.statusCode == 200) {
                                     Navigator.pop(context); 
                                     takePhoto();            
@@ -422,7 +422,7 @@ class _MainScreenState extends State<MainScreen> {
               onTap: () async {
                 print("Запитую сервер про відкриття діалогу...");
                 try {
-                  final url = Uri.parse('http://192.168.1.5:5000/click/scan_init');
+                  final url = Uri.parse('http://192.168.1.2:5000/click/scan_init');
                   final response = await http.post(url);
 
                   if (response.statusCode == 200) {
@@ -446,7 +446,7 @@ class _MainScreenState extends State<MainScreen> {
               left: 20,
               onTap: () async {
                 try {
-                  final response = await http.get(Uri.parse('http://192.168.1.5:5000/get_last_scan'))
+                  final response = await http.get(Uri.parse('http://192.168.1.2:5000/get_last_scan'))
                       .timeout(const Duration(seconds: 5));
 
                   if (response.statusCode == 200) {
@@ -480,7 +480,7 @@ class _MainScreenState extends State<MainScreen> {
               right: 20,
               onTap: () async {
                 try {
-                  final url = Uri.parse('http://192.168.1.5:5000/click/history');
+                  final url = Uri.parse('http://192.168.1.2:5000/click/history');
                   final response = await http.post(url);
 
                   if (response.statusCode == 200) {
@@ -541,16 +541,36 @@ class _MainScreenState extends State<MainScreen> {
   }
 }
 
-class HistoryPage extends StatelessWidget {
+class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
 
   @override
+  State<HistoryPage> createState() => _HistoryPageState();
+}
+
+class _HistoryPageState extends State<HistoryPage> {
+  final List<Map<String, String>> _allHistory = List.generate(
+    40, 
+    (i) => {
+      'time': '12:${i.toString().padLeft(2, '0')}',
+      'date': '07.05.2026',
+      'label': i % 3 == 0 ? 'Unknown' : 'Drone',
+      'accuracy': '${90 + (i % 10)}%'
+    },
+  );
+
+  int _currentLimit = 15;
+
+  void _loadMore() {
+    setState(() {
+      _currentLimit += 15; 
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final List<Map<String, String>> scanHistory = [
-      {'time': '12:30', 'date': '07.05.2026', 'label': 'Drone', 'accuracy': '98%'},
-      {'time': '10:15', 'date': '07.05.2026', 'label': 'Unknown', 'accuracy': '15%'},
-      {'time': '18:45', 'date': '06.05.2026', 'label': 'Drone', 'accuracy': '92%'},
-    ];
+    final displayedHistory = _allHistory.take(_currentLimit).toList();
+    final bool hasMore = _currentLimit < _allHistory.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -598,9 +618,31 @@ class HistoryPage extends StatelessWidget {
             Expanded(
               child: ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: scanHistory.length,
+                itemCount: hasMore ? displayedHistory.length + 1 : displayedHistory.length,
                 itemBuilder: (context, index) {
-                  final item = scanHistory[index];
+                  if (hasMore && index == displayedHistory.length) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 30),
+                      child: Center(
+                        child: ElevatedButton(
+                          onPressed: _loadMore,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF519CD0),
+                            foregroundColor: Colors.white,
+                            fixedSize: const Size(280, 60),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                            elevation: 2,
+                          ),
+                          child: const Text(
+                            "ЗАВАНТАЖИТИ ЩЕ...",
+                            style: TextStyle(fontFamily: 'Nunito', fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  final item = displayedHistory[index];
                   return HistoryCard(
                     label: item['label']!,
                     time: item['time']!,
@@ -639,7 +681,7 @@ class HistoryCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9), 
+        color: Colors.white.withOpacity(0.9),
         borderRadius: BorderRadius.circular(15),
         boxShadow: [
           BoxShadow(
@@ -663,37 +705,90 @@ class HistoryCard extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 16),
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isDrone ? "БПЛА Виявлено" : "Об'єкт не розпізнано",
+                  "$date, $time",
                   style: const TextStyle(
                     fontFamily: 'Nunito',
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 16, 
+                    color: Color(0xFF333333),
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
+                const SizedBox(height: 8), 
+
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                      fontFamily: 'Nunito',
+                      fontSize: 16,
+                      color: Color(0xFF333333),
+                    ),
+                    children: [
+                      const TextSpan(text: 'Статус: '),
+                      TextSpan(
+                        text: isDrone ? 'виявлено' : 'не виявлено',
+                        style: TextStyle(
+                          color: isDrone ? Colors.green : Colors.red,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
                 Text(
-                  "$date о $time",
-                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                  "Назва: ${isDrone ? 'дрон' : 'невідомо'}",
+                  style: const TextStyle(
+                    fontFamily: 'Nunito',
+                    fontSize: 16,
+                    color: Color(0xFF333333),
+                  ),
                 ),
               ],
             ),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              const Text("Точність", style: TextStyle(fontSize: 11, color: Colors.grey)),
-              Text(
-                accuracy,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: isDrone ? Colors.green : Colors.orange,
+
+          SizedBox(
+            height: 80, 
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween, 
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    print("Видалити запис"); 
+                  },
+                  child: SvgPicture.asset(
+                    'assets/images/ButtonDelete.svg', 
+                    width: 30,
+                    height: 30,
+                  ),
                 ),
-              ),
-            ],
+
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    const Text(
+                      "Точність", 
+                      style: TextStyle(fontSize: 14, color: Colors.grey)
+                    ),
+                    Text(
+                      accuracy,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: isDrone ? Colors.green : Colors.orange,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -810,7 +905,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.1.5:5000/upload'), 
+        Uri.parse('http://192.168.1.2:5000/upload'), 
       );
 
       request.files.add(

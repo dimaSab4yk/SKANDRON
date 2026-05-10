@@ -32,6 +32,7 @@ flutter:
       - assets/images/LastResult.svg
       - assets/images/GalleryBotton.svg
       - assets/images/CameraButton.svg
+      - assets/images/ButtonDelete.svg
 
   fonts:
     - family: Nunito
