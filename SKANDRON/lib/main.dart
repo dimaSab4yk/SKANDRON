@@ -128,7 +128,7 @@ class _MainScreenState extends State<MainScreen> {
                               label: 'ГАЛЕРЕЯ',
                               onTap: () async {
                                 try {
-                                  final response = await http.post(Uri.parse('http://192.168.1.2:5000/click/GalleryBotton'));
+                                  final response = await http.post(Uri.parse('http://192.168.1.6:5000/click/GalleryBotton'));
                                   if (response.statusCode == 200) {
                                     Navigator.pop(context); 
                                     pickImage();           
@@ -143,7 +143,7 @@ class _MainScreenState extends State<MainScreen> {
                               label: 'КАМЕРА',
                               onTap: () async {
                                 try {
-                                  final response = await http.post(Uri.parse('http://192.168.1.2:5000/click/CameraButton'));
+                                  final response = await http.post(Uri.parse('http://192.168.1.6:5000/click/CameraButton'));
                                   if (response.statusCode == 200) {
                                     Navigator.pop(context); 
                                     takePhoto();            
@@ -284,7 +284,7 @@ class _MainScreenState extends State<MainScreen> {
               onTap: () async {
                 print("Запитую сервер про відкриття діалогу...");
                 try {
-                  final url = Uri.parse('http://192.168.1.2:5000/click/scan_init');
+                  final url = Uri.parse('http://192.168.1.6:5000/click/scan_init');
                   final response = await http.post(url);
 
                   if (response.statusCode == 200) {
@@ -308,7 +308,7 @@ class _MainScreenState extends State<MainScreen> {
               left: 20,
               onTap: () async {
                 try {
-                  final response = await http.get(Uri.parse('http://192.168.1.2:5000/get_last_scan'))
+                  final response = await http.get(Uri.parse('http://192.168.1.6:5000/get_last_scan'))
                       .timeout(const Duration(seconds: 5));
 
                   if (response.statusCode == 200) {
@@ -342,7 +342,7 @@ class _MainScreenState extends State<MainScreen> {
               right: 20,
               onTap: () async {
                 try {
-                  final url = Uri.parse('http://192.168.1.2:5000/click/history');
+                  final url = Uri.parse('http://192.168.1.6:5000/click/history');
                   final response = await http.post(url);
 
                   if (response.statusCode == 200) {
@@ -430,7 +430,7 @@ class _HistoryPageState extends State<HistoryPage> {
     setState(() => _isLoading = true);
 
     try {
-      final url = Uri.parse('http://192.168.1.2:5000/api/get_history?offset=$_currentOffset&limit=$_limit');
+      final url = Uri.parse('http://192.168.1.6:5000/api/get_history?offset=$_currentOffset&limit=$_limit');
       
       final response = await http.get(url).timeout(const Duration(seconds: 10));
 
@@ -453,6 +453,59 @@ class _HistoryPageState extends State<HistoryPage> {
       );
     } finally {
       setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _deleteScan(int scanId, int index) async {
+    try {
+      final url = Uri.parse('http://192.168.1.6:5000/api/delete_scan/$scanId');
+      final response = await http.delete(url).timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final resBody = jsonDecode(response.body);
+        if (resBody['status'] == 'success') {
+          setState(() {
+            _historyData.removeAt(index);
+            if (_currentOffset > 0) _currentOffset--;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Row(
+                children: [
+                  Icon(Icons.delete_outline, color: Color(0xFF519CD0), size: 22),
+                  SizedBox(width: 12),
+                  Text(
+                    "Запис успішно видалено",
+                    style: TextStyle(
+                      fontFamily: 'Nunito',
+                      fontWeight: FontWeight.w600,
+                      fontSize: 15,
+                      color: Color(0xFF323232),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.white, 
+              elevation: 4, 
+              behavior: SnackBarBehavior.floating, 
+              margin: const EdgeInsets.all(16), 
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15), 
+                side: const BorderSide(color: Color(0xFF519CD0), width: 1), 
+              ),
+              duration: const Duration(seconds: 2), 
+            ),
+          );
+        }
+      } else {
+        throw Exception("Сервер повернув код ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("Помилка видалення: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Не вдалося видалити запис з сервера")),
+      );
     }
   }
 
@@ -530,6 +583,8 @@ class _HistoryPageState extends State<HistoryPage> {
                             }
 
                             final item = _historyData[index];
+                            
+                            final int scanId = item['id'] ?? 0;
 
                             return GestureDetector(
                               onTap: () {
@@ -544,11 +599,16 @@ class _HistoryPageState extends State<HistoryPage> {
                                   ),
                                 );
                               },
+
                               child: HistoryCard(
+                                id: scanId,
                                 label: item['label'] ?? "Невідомо",
                                 time: item['time'] ?? "00:00",
                                 date: item['date'] ?? "00.00.0000",
                                 accuracy: item['accuracy'] ?? "0%",
+                                onDelete: () {
+                                  _deleteScan(scanId, index);
+                                },
                               ),
                             );
                           },
@@ -562,17 +622,21 @@ class _HistoryPageState extends State<HistoryPage> {
 }
 
 class HistoryCard extends StatelessWidget {
+  final int id;
   final String label;
   final String time;
   final String date;
   final String accuracy;
+  final VoidCallback onDelete;
 
   const HistoryCard({
     super.key,
+    required this.id,
     required this.label,
     required this.time,
     required this.date,
     required this.accuracy,
+    required this.onDelete,
   });
 
   @override
@@ -662,9 +726,7 @@ class HistoryCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 GestureDetector(
-                  onTap: () {
-                    print("Видалити запис"); 
-                  },
+                  onTap: onDelete, 
                   child: SvgPicture.asset(
                     'assets/images/ButtonDelete.svg', 
                     width: 30,
@@ -797,17 +859,24 @@ class _PreviewScreenState extends State<PreviewScreen> {
   bool _isLoading = false;
   String _resultText = "";
   String? _serverImageUrl;
+  
+  String _networkTimeText = "";
+  String _serverTimeText = "";
 
   Future<void> _scanImage() async {
     setState(() {
       _isLoading = true;
       _resultText = "Аналізую...";
+      _networkTimeText = ""; 
+      _serverTimeText = "";
     });
+
+    final stopwatch = Stopwatch()..start();
 
     try {
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://192.168.1.2:5000/upload'), 
+        Uri.parse('http://192.168.1.6:5000/upload'), 
       );
 
       request.files.add(
@@ -817,12 +886,23 @@ class _PreviewScreenState extends State<PreviewScreen> {
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
 
+      stopwatch.stop();
+
       if (response.statusCode == 200) {
         var data = jsonDecode(response.body);
         List objects = data['objects'];
+        
+        var serverDuration = data['scan_duration'];
 
         setState(() {
           _serverImageUrl = data['result_image_url']; 
+
+          final totalSeconds = (stopwatch.elapsedMilliseconds / 1000).toStringAsFixed(2);
+          _networkTimeText = "Загальний час (з мережею): $totalSeconds сек";
+
+          if (serverDuration != null) {
+            _serverTimeText = "Чистий час аналізу моделі: $serverDuration сек";
+          }
 
           if (objects.isEmpty) {
             _resultText = "Об'єктів не знайдено";
@@ -836,6 +916,7 @@ class _PreviewScreenState extends State<PreviewScreen> {
         setState(() => _resultText = "Помилка сервера: ${response.statusCode}");
       }
     } catch (e) {
+      if (stopwatch.isRunning) stopwatch.stop();
       setState(() => _resultText = "Помилка зв'язку: $e");
     } finally {
       setState(() => _isLoading = false);
@@ -877,10 +958,29 @@ class _PreviewScreenState extends State<PreviewScreen> {
             
             if (_resultText.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
                 child: Text(
                   _resultText,
+                  textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF519CD0)),
+                ),
+              ),
+
+            if (_serverTimeText.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  _serverTimeText,
+                  style: const TextStyle(fontSize: 14, color: Color(0xFF2E7D32), fontWeight: FontWeight.w500),
+                ),
+              ),
+
+            if (_networkTimeText.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2, bottom: 15),
+                child: Text(
+                  _networkTimeText,
+                  style: const TextStyle(fontSize: 13, color: Colors.grey),
                 ),
               ),
 
@@ -909,6 +1009,7 @@ class ScanDetailDialog extends StatelessWidget {
   final String scanTime;
   final String imageUrl;
   final List<dynamic> results;
+  final double? scanDuration;
 
   const ScanDetailDialog({
     super.key,
@@ -916,37 +1017,50 @@ class ScanDetailDialog extends StatelessWidget {
     required this.scanTime,
     required this.imageUrl,
     required this.results,
+    this.scanDuration,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final double dialogHeight = screenHeight * 0.6;
+@override
+Widget build(BuildContext context) {
+  final screenWidth = MediaQuery.of(context).size.width;
+  final screenHeight = MediaQuery.of(context).size.height;
+  final double dialogHeight = screenHeight * 0.65; 
 
-    String label = "Невідомо";
-    String accuracy = "0%";
-    String status = "не виявлено";
-    Color statusColor = const Color(0xFFE75454);
+  String label = "Невідомо";
+  String accuracy = "0%";
+  String status = "не виявлено";
+  Color statusColor = const Color(0xFFE75454);
+  
+  // 1. ПЕРЕВІРЯЄМО ПАРАМЕТР З КОНСТРУКТОРА
+  String scanDurationText = "Не вказано"; 
+  if (scanDuration != null) {
+    scanDurationText = "$scanDuration сек";
+  }
 
-    if (results.isNotEmpty) {
-      final firstResult = results[0];
-      label = firstResult['label']?.toString() ?? "Невідомо";
-      
-      double conf = double.tryParse(firstResult['confidence'].toString()) ?? 
-                    (double.tryParse(firstResult['accuracy']?.toString().replaceAll('%', '') ?? '0') ?? 0.0);
-      
-      if (conf <= 1.0 && conf > 0) {
-        accuracy = "${(conf * 100).toStringAsFixed(0)}%";
-      } else {
-        accuracy = "${conf.toStringAsFixed(0)}%";
-      }
-
-      if (label.toLowerCase() == 'drone') {
-        status = "виявлено";
-        statusColor = const Color(0xFF0BB43A);
-      }
+  if (results.isNotEmpty) {
+    final firstResult = results[0];
+    
+    // 2. ЯКЩО В КОНСТРУКТОРІ БУВ NULL, ШУКАЄМО В МАСИВІ (ДЛЯ ІСТОРІЇ)
+    if (scanDuration == null && firstResult['scan_duration'] != null) {
+      scanDurationText = "${firstResult['scan_duration']} сек";
     }
+
+    label = firstResult['label']?.toString() ?? "Невідомо";
+    
+    double conf = double.tryParse(firstResult['confidence'].toString()) ?? 
+                  (double.tryParse(firstResult['accuracy']?.toString().replaceAll('%', '') ?? '0') ?? 0.0);
+    
+    if (conf <= 1.0 && conf > 0) {
+      accuracy = "${(conf * 100).toStringAsFixed(0)}%";
+    } else {
+      accuracy = "${conf.toStringAsFixed(0)}%";
+    }
+
+    if (label.toLowerCase() == 'drone') {
+      status = "виявлено";
+      statusColor = const Color(0xFF0BB43A);
+    }
+  }
 
     return Center(
       child: Material(
@@ -993,7 +1107,7 @@ class ScanDetailDialog extends StatelessWidget {
 
                 Positioned(
                   top: 85,
-                  bottom: 125,
+                  bottom: 150, 
                   left: 10,
                   right: 10,
                   child: Container(
@@ -1023,6 +1137,8 @@ class ScanDetailDialog extends StatelessWidget {
                       _buildStatusText("Статус: ", status, statusColor),
                       const SizedBox(height: 6),
                       _buildRichText("Точність: ", accuracy),
+                      const SizedBox(height: 6),
+                      _buildRichText("Час обробки: ", scanDurationText), 
                     ],
                   ),
                 ),
@@ -1067,4 +1183,3 @@ class ScanDetailDialog extends StatelessWidget {
     );
   }
 }
-

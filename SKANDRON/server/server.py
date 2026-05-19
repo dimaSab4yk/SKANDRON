@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from ultralytics import YOLO
 from datetime import datetime
+import time
 import os
 import cv2
 import ast
@@ -19,6 +20,7 @@ class Scan(db.Model):
     processed_image = db.Column(db.String(100), nullable=False)
     result_text = db.Column(db.String(200))
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    scan_duration = db.Column(db.Float, nullable=True)
 
     def __repr__(self):
         return f'<Scan {self.image_name}>'
@@ -75,6 +77,8 @@ def upload_image():
     orig_path = os.path.join(UPLOAD_FOLDER, orig_filename)
     file.save(orig_path)
 
+    start_time = time.time()
+
     results = model.predict(source=orig_path, save=False)
     res_plotted = results[0].plot()
     
@@ -87,23 +91,29 @@ def upload_image():
         confidence = float(box.conf[0])
         detected_objects.append({"label": label, "confidence": round(confidence, 2)})
 
+    end_time = time.time()
+    
+    duration = round(end_time - start_time, 2)
+
     try:
         new_scan = Scan(
             original_image=orig_filename,
             processed_image=res_filename,
-            result_text=str(detected_objects)
+            result_text=str(detected_objects),
+            scan_duration=duration  
         )
         db.session.add(new_scan)
         db.session.commit()
-        print(f"Успішно збережено: {orig_filename} та {res_filename}")
+        print(f"Успішно збережено: {orig_filename}, {res_filename}, час: {duration} сек")
     except Exception as e:
         print(f"Помилка БД: {e}")
 
     return jsonify({
         "status": "success",
         "objects": detected_objects,
-        "original_image_url": f"http://192.168.1.2:5000/download/{orig_filename}",
-        "result_image_url": f"http://192.168.1.2:5000/download/{res_filename}"
+        "scan_duration": duration,  
+        "original_image_url": f"http://192.168.1.6:5000/download/{orig_filename}",
+        "result_image_url": f"http://192.168.1.6:5000/download/{res_filename}"
     })
 
 @app.route('/get_last_scan', methods=['GET'])
@@ -116,15 +126,33 @@ def get_last_scan():
 
         try:
             raw_data = last_scan.result_text
-            results_list = ast.literal_eval(raw_data) if raw_data else []
+            detected_objects = ast.literal_eval(raw_data) if raw_data else []
         except:
-            results_list = [] 
+            detected_objects = [] 
+
+        label = "Unknown"
+        accuracy = "0%"
+        if detected_objects:
+            label = detected_objects[0].get('label', 'Unknown')
+            conf = detected_objects[0].get('confidence', 0)
+            accuracy = f"{int(conf * 100)}%"
+
+        duration = getattr(last_scan, 'scan_duration', None)
 
         return jsonify({
             "status": "success",
             "time": last_scan.timestamp.strftime("%H:%M:%S %d.%m.%Y"),
-            "results": results_list, 
-            "image": f"http://192.168.1.2:5000/download/{last_scan.processed_image}"
+            "image": f"http://192.168.1.6:5000/download/{last_scan.processed_image}",
+            "results": [{
+                "id": last_scan.id,
+                "label": label,
+                "accuracy": accuracy,
+                "time": last_scan.timestamp.strftime("%H:%M"),
+                "date": last_scan.timestamp.strftime("%d.%m.%Y"),
+                "scan_duration": duration, 
+                "image_url": f"http://192.168.1.6:5000/download/{last_scan.processed_image}"
+            }],
+            "scan_duration": duration 
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
@@ -156,7 +184,8 @@ def get_history():
                 "accuracy": accuracy,
                 "time": scan.timestamp.strftime("%H:%M"),
                 "date": scan.timestamp.strftime("%d.%m.%Y"),
-                "image_url": f"http://192.168.1.2:5000/download/{scan.processed_image}"
+                "scan_duration": getattr(scan, 'scan_duration', None), 
+                "image_url": f"http://192.168.1.6:5000/download/{scan.processed_image}"
             })
 
         return jsonify(results_list)
